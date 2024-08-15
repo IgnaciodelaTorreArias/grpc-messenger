@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+service Messenger {
+  rpc RequestConnection (Server) returns (Void) {}
+  // The sender requests a connection to the server side of the receiver,
+  // sending the location of its own server side and a token to authenticate
+  rpc Authenticate (Server) returns (Void) {}
+  // The receiver tries to connect to the server side of the sender,
+  // sending the authentication token
+  rpc Connect (stream Message) returns (stream Message) {}
+  // Once the connection request has been accepted the sender can start sending/receiving messages
+}
+
+message Message {
+  string message = 1;
+}
+
+message Server {
+  string identification = 1;
+  // Who is sending the request
+  bytes token = 3;
+  // The validation token
+}
+
+message Void {}

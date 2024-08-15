@@ -1,0 +1,1 @@
+protoc -I.\src\protos --python_out=.\src\dearrpc\protos --pyi_out=.\src\dearrpc\protos --grpc_python_out=.\src\dearrpc\protos .\src\protos\Messager.proto

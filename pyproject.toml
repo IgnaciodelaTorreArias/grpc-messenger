@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "grpc-messenger"
+version = "1.0.0"
+description = "Send text messages over the network, using grpc"
+authors = ["Ignacio de la Torre <ignaciodlta@gmail.com>"]
+maintainers = ["Ignacio de la Torre <ignaciodlta@gmail.com>"]
+classifiers = [
+    "Framework :: AsyncIO",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Topic :: Communications",
+    "Topic :: Communications :: Chat",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: User Interfaces",
+    "Typing :: Typed"
+]
+repository = "https://github.com/IgnaciodelaTorreArias/grpc-messenger"
+readme = "README.md"
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+grpcio = "^1.65.4"
+protobuf = "^5.27.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
