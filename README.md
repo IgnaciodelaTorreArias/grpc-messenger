@@ -1,4 +1,13 @@
-![](/assets/bear-256.png)
+# GRPC-MESSENGER
+
+![Image](/assets/bear-256.png)
+
+![PyPI - License](https://img.shields.io/pypi/l/grpc-messenger)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/grpc-messenger)
+![PyPI - Version](https://img.shields.io/pypi/v/grpc-messenger)
+[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+![Statically typed: mypy](https://img.shields.io/badge/statically%20typed-mypy-039dfc)
 
 ---
 
@@ -48,7 +57,6 @@ The requiere methods are:
 - failed. Called when the connection described before failed
 - new_message. Called when you receive a message from someone
 - disconnected. Called when a disconnection happens
-
 
 ### Thread safe gui/cli library
 

@@ -3,7 +3,7 @@ import asyncio
 import secrets
 from collections import defaultdict
 import logging
-from typing import  AsyncGenerator, Protocol
+from typing import AsyncGenerator, Protocol
 
 import grpc
 import grpc_messenger.protos.Messager_pb2 as pb2
@@ -15,15 +15,16 @@ from grpc_messenger.pipes import Pipes, PipesBuffering, PipesImmediateUpdate
 # NOTE: theoretically if 2 people try starting a connection with each other
 # at a similar time (practically at the same time) 2 connections will be created, this is a feature :)
 
+
 class ServerI(Protocol):
     @property
-    def address(self) -> str:
-        ...
-    def send_message(self, connection: str, message: str) -> None:
-        ...
+    def address(self) -> str: ...
+    def send_message(self, connection: str, message: str) -> None: ...
+
 
 class Server(pb2_grpc.MessengerServicer):
     logger = logging.getLogger("Server")
+
     def __init__(self, address: str, pipes: Pipes) -> None:
         super().__init__()
         self._address = address
@@ -34,10 +35,10 @@ class Server(pb2_grpc.MessengerServicer):
         self._to_send_messages: dict[str, asyncio.Queue[str | None]]
         self._thread: threading.Thread
         self._loop: asyncio.AbstractEventLoop
-        
+
         self._server_initialized: threading.Event
         self._server_stop: threading.Event
-        
+
         self._started: bool
         self._inside_context: bool = False
 
@@ -72,9 +73,11 @@ class Server(pb2_grpc.MessengerServicer):
 
         self._started = False
 
-        self._thread = threading.Thread(target=asyncio.run, args=(self._start_server(),))
+        self._thread = threading.Thread(
+            target=asyncio.run, args=(self._start_server(),)
+        )
         self._thread.start()
-        self._server_initialized.wait() # wait for it to truly start or fail
+        self._server_initialized.wait()  # wait for it to truly start or fail
         if not self._started:
             return None
         self._inside_context = True
@@ -85,7 +88,7 @@ class Server(pb2_grpc.MessengerServicer):
             for queue in self._to_send_messages.values():
                 asyncio.run_coroutine_threadsafe(queue.put(None), self._loop)
             while len(self._to_send_messages):
-                pass # Wait for all connections to be terminated gracefully
+                pass  # Wait for all connections to be terminated gracefully
             asyncio.run_coroutine_threadsafe(self._server.stop(None), self._loop)
             # Since the initialization indicates that the server started correctly,
             # now we wait for it to stop
@@ -99,11 +102,13 @@ class Server(pb2_grpc.MessengerServicer):
             raise RuntimeError("Operation only valid inside context")
         if self._to_send_messages.get(connection) is None:
             return
-        asyncio.run_coroutine_threadsafe(self._to_send_messages[connection].put(message), self._loop)
+        asyncio.run_coroutine_threadsafe(
+            self._to_send_messages[connection].put(message), self._loop
+        )
 
     # ----- grpc methods ----- #
 
-    async def timed_connection_authenticity(self, client:str) -> None:
+    async def timed_connection_authenticity(self, client: str) -> None:
         # Limit connection, avoiding attacks of memory leak and limit the time an authentication is valid
         await asyncio.sleep(10)
         if self._clients_servers.pop(client, None) is not None:
@@ -111,17 +116,20 @@ class Server(pb2_grpc.MessengerServicer):
         self._authenticated_servers.discard(client)
 
     async def RequestConnection(
-        self,
-        request: pb2.Server,
-        context: grpc.aio.ServicerContext
+        self, request: pb2.Server, context: grpc.aio.ServicerContext
     ) -> pb2.Void:
-        if request.identification in self._pipes.current_connections or request.identification in self._authenticated_servers:
+        if (
+            request.identification in self._pipes.current_connections
+            or request.identification in self._authenticated_servers
+        ):
             # This limits the amount of connections/requests of connections that can be done per server
             await context.abort(
                 code=grpc.StatusCode.ALREADY_EXISTS,
-                details="You have access to a connection"
+                details="You have access to a connection",
             )
-        self.logger.debug("New request from %s with server %s", context.peer(), request.identification)
+        self.logger.debug(
+            "New request from %s with server %s", context.peer(), request.identification
+        )
         # NOTE: keeping the track of the peer's ip on a set would allow to immediately
         # deny the ip from having multiple requests, making sure they only connect once, therefore protecting
         # ourselves from a DOS attack from the peer, but since the string format of the peer is determined
@@ -133,20 +141,33 @@ class Server(pb2_grpc.MessengerServicer):
                 # Validating if the server proportioned by this peer is reachable
                 await asyncio.wait_for(channel.channel_ready(), timeout=7)
                 stub = pb2_grpc.MessengerStub(channel)
-                await asyncio.wait_for(stub.Authenticate(pb2.Server(identification=self._address, token=request.token)), timeout=7)
+                await asyncio.wait_for(
+                    stub.Authenticate(
+                        pb2.Server(identification=self._address, token=request.token)
+                    ),
+                    timeout=7,
+                )
         except asyncio.TimeoutError:
-            self.logger.debug("Request from %s with server %s, timeout", context.peer(), request.identification)
+            self.logger.debug(
+                "Request from %s with server %s, timeout",
+                context.peer(),
+                request.identification,
+            )
             self._pipes.failed(request.identification)
             await context.abort(
                 code=grpc.StatusCode.DEADLINE_EXCEEDED,
-                details="The server you proportioned took too long to respond"
+                details="The server you proportioned took too long to respond",
             )
         except grpc.RpcError as e:
-            self.logger.debug("Authentication from %s with server %s, rejected", context.peer(), request.identification)
+            self.logger.debug(
+                "Authentication from %s with server %s, rejected",
+                context.peer(),
+                request.identification,
+            )
             self._pipes.failed(request.identification)
             await context.abort(
                 code=grpc.StatusCode.PERMISSION_DENIED,
-                details="The server you proportioned denied your identity"
+                details="The server you proportioned denied your identity",
             )
         if request.identification in self._authenticated_servers:
             # An attacker could start a lot of requests with the same o different clients
@@ -158,28 +179,34 @@ class Server(pb2_grpc.MessengerServicer):
             self._pipes.failed(request.identification)
             await context.abort(
                 code=grpc.StatusCode.ALREADY_EXISTS,
-                details="You have access to a connection don't make another"
+                details="You have access to a connection don't make another",
             )
-        self.logger.debug("Authentication from %s with server %s, accepted", context.peer(), request.identification)
+        self.logger.debug(
+            "Authentication from %s with server %s, accepted",
+            context.peer(),
+            request.identification,
+        )
         self._clients_servers[context.peer()] = request.identification
         self._authenticated_servers.add(request.identification)
         asyncio.create_task(self.timed_connection_authenticity(context.peer()))
         return pb2.Void()
 
     async def Authenticate(
-        self,
-        request: pb2.Server,
-        context: grpc.aio.ServicerContext
+        self, request: pb2.Server, context: grpc.aio.ServicerContext
     ) -> pb2.Void:
         try:
             self.logger.debug("Validating connection with %s", request.identification)
-            if secrets.compare_digest(self._pipes.pending_validations[request.identification], request.token):
-                self.logger.debug("Connection with %s validated", request.identification)
+            if secrets.compare_digest(
+                self._pipes.pending_validations[request.identification], request.token
+            ):
+                self.logger.debug(
+                    "Connection with %s validated", request.identification
+                )
                 self._pipes.pending_validations.pop(request.identification, None)
                 return pb2.Void()
             await context.abort(
                 code=grpc.StatusCode.PERMISSION_DENIED,
-                details="Theres is no pending connection with you"
+                details="Theres is no pending connection with you",
                 # Technically a better response would be:
                 # The validation key you proportioned is invalid
                 # but this would give information to the attacker
@@ -187,24 +214,28 @@ class Server(pb2_grpc.MessengerServicer):
         except KeyError:
             await context.abort(
                 code=grpc.StatusCode.PERMISSION_DENIED,
-                details="Theres is no pending connection with you"
+                details="Theres is no pending connection with you",
             )
 
-    async def messages(self, request_iterator: AsyncGenerator[pb2.Message, None], connection: str) -> None:
+    async def messages(
+        self, request_iterator: AsyncGenerator[pb2.Message, None], connection: str
+    ) -> None:
         async for message in request_iterator:
             self._pipes.new_message(connection, message.message)
-        await self._to_send_messages[connection].put(None) # If the clients stream terminates we terminate ours too
+        await self._to_send_messages[connection].put(
+            None
+        )  # If the clients stream terminates we terminate ours too
 
     async def Connect(
         self,
         request_iterator: AsyncGenerator[pb2.Message, None],
-        context: grpc.aio.ServicerContext
+        context: grpc.aio.ServicerContext,
     ) -> AsyncGenerator[pb2.Message, None]:
         identification = self._clients_servers.pop(context.peer(), None)
         if identification is None:
             await context.abort(
                 code=grpc.StatusCode.FAILED_PRECONDITION,
-                details="You need to request a connection first"
+                details="You need to request a connection first",
             )
         self.logger.debug("%s initiated the connection", identification)
         self._pipes.connected(identification)
@@ -222,17 +253,17 @@ class Server(pb2_grpc.MessengerServicer):
             self._pipes.disconnected(identification)
             self._to_send_messages.pop(identification, None)
 
+
 class ClientI(Protocol):
     @property
-    def address(self) -> str:
-        ...
-    def connect(self, connection: str) -> None:
-        ...
-    def send_message(self, connection: str, message: str) -> None:
-        ...
+    def address(self) -> str: ...
+    def connect(self, connection: str) -> None: ...
+    def send_message(self, connection: str, message: str) -> None: ...
+
 
 class Client:
     logger = logging.getLogger("Client")
+
     def __init__(self, address: str, pipes: Pipes) -> None:
         self._address: str = address
         self._pipes = pipes
@@ -261,7 +292,9 @@ class Client:
         self._ready = threading.Event()
         self._stop_event = asyncio.Event()
 
-        self._thread = threading.Thread(target=asyncio.run, args=(self._start_clients(),))
+        self._thread = threading.Thread(
+            target=asyncio.run, args=(self._start_clients(),)
+        )
         self._thread.start()
         self._ready.wait()
         self._inside_context = True
@@ -271,7 +304,7 @@ class Client:
         for queue in self._to_send_messages.values():
             asyncio.run_coroutine_threadsafe(queue.put(None), self._loop)
         while len(self._to_send_messages):
-            pass # wait for all connections to gracefully terminate
+            pass  # wait for all connections to gracefully terminate
         self._loop.call_soon_threadsafe(self._stop_event.set)
         self._thread.join()
         self._inside_context = False
@@ -288,14 +321,18 @@ class Client:
             raise RuntimeError("Operation only valid inside context")
         if self._to_send_messages.get(connection) is None:
             return
-        asyncio.run_coroutine_threadsafe(self._to_send_messages[connection].put(message), self._loop)
+        asyncio.run_coroutine_threadsafe(
+            self._to_send_messages[connection].put(message), self._loop
+        )
 
     async def delete_validation_token(self, connection: str) -> None:
         await asyncio.sleep(15)
         if self._pipes.pending_validations.pop(connection, None) is not None:
             self.logger.debug("Validation token for %s, timeout", connection)
 
-    async def _message_generator(self, connection: str) -> AsyncGenerator[pb2.Message, None]:
+    async def _message_generator(
+        self, connection: str
+    ) -> AsyncGenerator[pb2.Message, None]:
         queue = self._to_send_messages[connection]
         while True:
             message = await queue.get()
@@ -316,7 +353,9 @@ class Client:
                 await asyncio.wait_for(channel.channel_ready(), timeout=10)
                 self.logger.debug("Channel to %s, opened", connection)
                 stub = pb2_grpc.MessengerStub(channel)
-                await stub.RequestConnection(pb2.Server(identification=self._address, token=token))
+                await stub.RequestConnection(
+                    pb2.Server(identification=self._address, token=token)
+                )
                 self.logger.debug("Connection to %s, successful", connection)
                 self._pipes.connected(connection)
                 async for message in stub.Connect(self._message_generator(connection)):
@@ -326,24 +365,23 @@ class Client:
             self.logger.error("Connection to %s, failed, deadline", connection)
             self._pipes.failed(connection)
         except grpc.RpcError as e:
-            self.logger.error("Connection to %s, failed, %s", connection, e.details()) # type: ignore
+            self.logger.error("Connection to %s, failed, %s", connection, e.details())  # type: ignore
             self._pipes.failed(connection)
         finally:
             await self._to_send_messages[connection].put(None)
             self._pipes.disconnected(connection)
             self._to_send_messages.pop(connection, None)
 
+
 class BackendI(Protocol):
     @property
-    def address(self) -> str:
-        ...
+    def address(self) -> str: ...
     @property
-    def public_facing_address(self) -> str:
-        ...
+    def public_facing_address(self) -> str: ...
     def render(self) -> None:
-        """To render from the buffer only when you indicate that `thread_safe_view=False` (the default)
-        """
+        """To render from the buffer only when you indicate that `thread_safe_view=False` (the default)"""
         ...
+
     def connect(self, connection: str) -> None:
         """To who you want to initiate a connection
 
@@ -351,17 +389,25 @@ class BackendI(Protocol):
             connection (str): the address of the destiny's server
         """
         ...
+
     def send_message(self, connection: str, message: str) -> None:
         """To who you want to send a message and the message itself
 
         Args:
             connection (str): the address of the destiny's server
             message (str): the message you want to send
-        """        
+        """
         ...
 
+
 class Backend:
-    def __init__(self, address: str, view_updater: ViewUpdate, thread_safe_view: bool = False, public_facing_address: str | None = None) -> None:
+    def __init__(
+        self,
+        address: str,
+        view_updater: ViewUpdate,
+        thread_safe_view: bool = False,
+        public_facing_address: str | None = None,
+    ) -> None:
         # TODO: see what can be done for using public facing addresses
         self._server_address = address
         self._client_address = address
@@ -391,8 +437,10 @@ class Backend:
         if not self._inside_context:
             raise RuntimeError("Operation only valid inside context")
         if self._thread_safe_view:
-            raise RuntimeError("You provided a 'thread safe' ViewUpdater that is already being used")
-        with self._pipes.render() as buffers: # type: ignore
+            raise RuntimeError(
+                "You provided a 'thread safe' ViewUpdater that is already being used"
+            )
+        with self._pipes.render() as buffers:  # type: ignore
             for connecting in buffers.connecting:
                 self._view.connecting(connecting)
             for connected in buffers.connected:

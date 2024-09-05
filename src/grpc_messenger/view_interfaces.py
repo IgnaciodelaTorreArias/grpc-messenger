@@ -2,17 +2,18 @@ from dataclasses import dataclass, field
 from collections import deque
 from typing import Protocol
 
+
 @dataclass(frozen=True, slots=True)
 class ViewBuffers:
     # In case the gui/cli you are using is NOT thread safe
     connecting: deque[str] = field(init=False, default_factory=deque)
     connected: deque[str] = field(init=False, default_factory=deque)
     failed: deque[str] = field(init=False, default_factory=deque)
-    new_message: deque[tuple[
-        str, # Who sent the message
-        str # The message
-    ]] = field(init=False, default_factory=deque)
+    new_message: deque[tuple[str, str]] = field(  # sender, message
+        init=False, default_factory=deque
+    )
     disconnected: deque[str] = field(init=False, default_factory=deque)
+
 
 class ViewUpdate(Protocol):
     # Callbacks used to update your gui/cli
@@ -23,6 +24,7 @@ class ViewUpdate(Protocol):
             connection (str): the address of who is trying to connect
         """
         ...
+
     def connected(self, connection: str) -> None:
         """Called when the connection described before is successful
 
@@ -30,6 +32,7 @@ class ViewUpdate(Protocol):
             connection (str): the address of the successful connection
         """
         ...
+
     def failed(self, connection: str) -> None:
         """Called when the connection described before failed
 
@@ -37,6 +40,7 @@ class ViewUpdate(Protocol):
             connection (str): the address of the failed connection
         """
         ...
+
     def new_message(self, connection: str, message: str) -> None:
         """Called when you receive a message from someone
 
@@ -45,10 +49,11 @@ class ViewUpdate(Protocol):
             message (str): the message you received
         """
         ...
+
     def disconnected(self, connection: str) -> None:
         """Called when a disconnection happens
 
         Args:
             connection (str): the address of who disconnected
-        """        
+        """
         ...

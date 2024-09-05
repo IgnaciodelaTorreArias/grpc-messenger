@@ -16,7 +16,9 @@ class Server(_message.Message):
     TOKEN_FIELD_NUMBER: _ClassVar[int]
     identification: str
     token: bytes
-    def __init__(self, identification: _Optional[str] = ..., token: _Optional[bytes] = ...) -> None: ...
+    def __init__(
+        self, identification: _Optional[str] = ..., token: _Optional[bytes] = ...
+    ) -> None: ...
 
 class Void(_message.Message):
     __slots__ = ()

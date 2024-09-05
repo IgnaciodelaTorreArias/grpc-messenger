@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "grpc-messenger"
-version = "1.0.0"
+version = "1.0.1"
 description = "Send text messages over the network, using grpc"
 authors = ["Ignacio de la Torre <ignaciodlta@gmail.com>"]
 maintainers = ["Ignacio de la Torre <ignaciodlta@gmail.com>"]
